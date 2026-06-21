@@ -1,0 +1,8 @@
+; M0 메인 씬. 단일 루트 Node + main.gd. (run/main_scene 대상)
+; NOTE: 손작성 .tscn 1개만 허용 범위. Godot가 import 시 uid를 보강할 수 있음.
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1")

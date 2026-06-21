@@ -1,0 +1,7 @@
+; 일회용 성능 스파이크 씬. 본 게임 플로우 비연결. F6으로 직접 실행.
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/bench/bench_500.gd" id="1"]
+
+[node name="Bench500" type="Node2D"]
+script = ExtResource("1")
