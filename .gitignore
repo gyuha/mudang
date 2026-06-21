@@ -15,7 +15,3 @@
 !.forge/adr/
 !.forge/done/
 !.forge/CONTEXT.md
-
-# 루트 스크래치 컨셉 이미지(아트로 채택 시 assets/로 옮기고 이 줄 삭제)
-/concept-*.png
-/concept-*.png.import
