@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EnemyDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/drop_table.gd" id="2"]
+
+[sub_resource type="Resource" id="DropTable_ghost_maiden"]
+script = ExtResource("2")
+mudang_soulfire_chance = 0.7
+mudang_soulfire_amount = 1
+companion_soulfire_chance = 0.3
+companion_soulfire_amount = 2
+
+[resource]
+script = ExtResource("1")
+id = &"ghost_maiden"
+max_hp = 10.0
+move_speed = 130.0
+knockback_resist = 0.2
+contact_damage = 6.0
+ai_kind = &"target_companion"
+spawn_cost = 3
+exp_value = 2
+level = 1
+drop = SubResource("DropTable_ghost_maiden")

@@ -1,0 +1,98 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=20 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Resource" path="res://data/enemies/mob_low.tres" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/ghost_maiden.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/dokkaebi.tres" id="8"]
+[ext_resource type="Resource" path="res://data/enemies/boss_hwalinseo.tres" id="9"]
+
+[sub_resource type="Resource" id="Obj_survive"]
+script = ExtResource("2")
+kind = &"survive_time"
+params = {
+"time": 360.0
+}
+
+[sub_resource type="Resource" id="Obj_defend"]
+script = ExtResource("2")
+kind = &"defend_target"
+params = {
+"target_hp": 300.0,
+"label": "병자 거점"
+}
+
+[sub_resource type="Resource" id="SP_mob_low"]
+script = ExtResource("3")
+enemy = ExtResource("6")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_ghost"]
+script = ExtResource("3")
+enemy = ExtResource("7")
+weight = 0.6
+start_time = 120.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_90_ghost_group"]
+script = ExtResource("4")
+time = 90.0
+kind = 0
+enemy = ExtResource("7")
+count = 8
+
+[sub_resource type="Resource" id="TL_180_dokkaebi"]
+script = ExtResource("4")
+time = 180.0
+kind = 1
+enemy = ExtResource("8")
+count = 1
+
+[sub_resource type="Resource" id="TL_300_rush_mob"]
+script = ExtResource("4")
+time = 300.0
+kind = 2
+enemy = ExtResource("6")
+count = 40
+
+[sub_resource type="Resource" id="TL_300_rush_ghost"]
+script = ExtResource("4")
+time = 300.0
+kind = 2
+enemy = ExtResource("7")
+count = 10
+
+[sub_resource type="Resource" id="TL_360_boss"]
+script = ExtResource("4")
+time = 360.0
+kind = 1
+enemy = ExtResource("9")
+count = 1
+
+[sub_resource type="Resource" id="Reward_hwalinseo"]
+script = ExtResource("5")
+meta_currency = 50
+first_clear_bonus = 100
+
+[resource]
+script = ExtResource("1")
+id = &"stage_hwalinseo"
+display_name = "1장 활인서의 밤"
+duration = 360.0
+objectives = [SubResource("Obj_survive"), SubResource("Obj_defend")]
+spawn_pool = [SubResource("SP_mob_low"), SubResource("SP_ghost")]
+timeline = [SubResource("TL_90_ghost_group"), SubResource("TL_180_dokkaebi"), SubResource("TL_300_rush_mob"), SubResource("TL_300_rush_ghost"), SubResource("TL_360_boss")]
+budget_base = 2.0
+budget_growth_per_sec = 0.0333
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = []
+recommended_roles = [&"tank", &"healer"]
+unlock_companion = &""
+reward = SubResource("Reward_hwalinseo")
+hazards = []

@@ -1,0 +1,14 @@
+; Godot 4 project file — 무녀: 밤을 부르는 자
+; 최소 골격. data/.tres 로드 검증용. (docs/ 설계 기준)
+
+config_version=5
+
+[application]
+
+config/name="무녀: 밤을 부르는 자"
+config/description="동료 지휘형 호드 서바이벌 로그라이트"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
