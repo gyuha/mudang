@@ -22,8 +22,10 @@ const DOWNED_TIMER: float = 8.0
 const REVIVE_HP_RATIO: float = 0.4
 ## 채널 이탈 시 부활 게이지 감쇠 속도 배수(천천히 감쇠). ([docs/02]§5)
 const REVIVE_DECAY_RATE: float = 0.5
-## 플레이스홀더 한 변 px
+## 플레이스홀더 한 변 px(스프라이트 누락 시 폴백)
 const PLACEHOLDER_SIZE: float = 22.0
+## 표시 스프라이트 한 변 px(원본 1024 텍스처 축소)
+const SPRITE_SIZE: float = 64.0
 
 ## 타게팅 우선순위 enum ([docs/02]§2)
 enum Priority { NEAREST, DENSEST, ELITE, LOWHP_ALLY }
@@ -66,11 +68,21 @@ var hp_bar: HpBar
 func _ready() -> void:
 	if def != null:
 		hp = def.max_hp
-	_rect = ColorRect.new()
-	_rect.color = _role_color()
-	_rect.size = Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE)
-	_rect.position = -_rect.size * 0.5
-	add_child(_rect)
+	# 생성 스프라이트(투명, id별). 없으면 역할색 ColorRect 폴백(eco: 에셋 누락 방어).
+	var tex: Texture2D = null
+	if def != null:
+		tex = load("res://assets/sprites/%s.png" % def.id) as Texture2D
+	if tex != null:
+		var spr := Sprite2D.new()
+		spr.texture = tex
+		spr.scale = Vector2.ONE * (SPRITE_SIZE / tex.get_width())
+		add_child(spr)
+	else:
+		_rect = ColorRect.new()
+		_rect.color = _role_color()
+		_rect.size = Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE)
+		_rect.position = -_rect.size * 0.5
+		add_child(_rect)
 
 	# 머리 위 HP 바(HUD 슬라이스).
 	hp_bar = HpBar.new()

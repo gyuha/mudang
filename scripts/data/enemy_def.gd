@@ -19,3 +19,5 @@ extends Resource
 @export var level: int = 1
 ## 혼불 드랍
 @export var drop: DropTable
+## 표시 스프라이트 한 변 px(원본 텍스처 축소 기준). 잡몹 작게, 보스 크게. ([docs/08]§2)
+@export var sprite_size: float = 28.0

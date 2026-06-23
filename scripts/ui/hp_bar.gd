@@ -6,8 +6,8 @@ extends Node2D
 
 const BAR_W: float = 28.0
 const BAR_H: float = 4.0
-## 유닛 중심 기준 위쪽 오프셋 px(머리 위).
-const Y_OFFSET: float = -20.0
+## 유닛 중심 기준 위쪽 오프셋 px(스프라이트 ~64px 위로 클리어).
+const Y_OFFSET: float = -42.0
 
 ## 0~1 채움 비율(hp/max).
 var ratio: float = 1.0

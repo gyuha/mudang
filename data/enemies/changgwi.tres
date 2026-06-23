@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/drop_table.gd" id="2"]
+
+[sub_resource type="Resource" id="DropTable_changgwi"]
+script = ExtResource("2")
+mudang_soulfire_chance = 0.5
+mudang_soulfire_amount = 1
+companion_soulfire_chance = 0.5
+companion_soulfire_amount = 1
+
+[resource]
+script = ExtResource("1")
+id = &"changgwi"
+max_hp = 18.0
+move_speed = 150.0
+knockback_resist = 0.3
+contact_damage = 7.0
+ai_kind = &"rush_lowhp"
+spawn_cost = 4
+exp_value = 3
+level = 1
+drop = SubResource("DropTable_changgwi")
+sprite_size = 34.0

@@ -69,13 +69,23 @@ func apply_upgrade(up: MudangUpgrade) -> void:
 func take_contact_damage(amount: float) -> void:
 	hp = max(0.0, hp - amount)
 
+## 표시 스프라이트 한 변 px(원본 1024 텍스처를 축소).
+const SPRITE_SIZE: float = 64.0
+
 func _ready() -> void:
-	# 코드로 플레이스홀더 그리기(아트 에셋 없이). 중심 정렬된 ColorRect.
-	var rect := ColorRect.new()
-	rect.color = Color(0.9, 0.3, 0.5)
-	rect.size = Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE)
-	rect.position = -rect.size * 0.5
-	add_child(rect)
+	# 생성 스프라이트(투명). 없으면 ColorRect 폴백(eco: 에셋 누락 방어).
+	var tex := load("res://assets/sprites/mudang.png") as Texture2D
+	if tex != null:
+		var spr := Sprite2D.new()
+		spr.texture = tex
+		spr.scale = Vector2.ONE * (SPRITE_SIZE / tex.get_width())
+		add_child(spr)
+	else:
+		var rect := ColorRect.new()
+		rect.color = Color(0.9, 0.3, 0.5)
+		rect.size = Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE)
+		rect.position = -rect.size * 0.5
+		add_child(rect)
 
 	# 머리 위 HP 바(HUD 슬라이스).
 	hp_bar = HpBar.new()

@@ -9,6 +9,10 @@ extends Resource
 @export var duration: float = 360.0
 @export var background: PackedScene
 
+## 서사 카드(D23, [docs/11]§5): 장 시작 일러스트 경로 + 텍스트. 빈 텍스트면 카드 미표시.
+@export var intro_image_path: String = ""
+@export_multiline var intro_text: String = ""
+
 @export var objectives: Array[ObjectiveDef] = []
 @export var spawn_pool: Array[SpawnPoolEntry] = []
 @export var timeline: Array[TimelineEvent] = []

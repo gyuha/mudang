@@ -7,8 +7,12 @@
 class_name RunScene
 extends Node2D
 
-## 슬라이스 스테이지 데이터(M6 — 이 한 파일로 6분 런이 굴러간다). ([docs/05], stage_hwalinseo)
+## 기본 스테이지(스테이지 선택 미지정 시). 실제 경로는 GameState.selected_stage_path. ([docs/05][docs/10])
 const STAGE_PATH: String = "res://data/stages/stage_hwalinseo.tres"
+## 거점 N개 배치 위치(defend_target 목표 수만큼 사용). 1개=중앙, 다수=분산(docs/10 2장 다중거점).
+const STRONGHOLD_POSITIONS: Array[Vector2] = [
+	Vector2(0, 0), Vector2(-300, -200), Vector2(300, 220), Vector2(-280, 240),
+]
 ## 동료 데이터 3종(M2 슬라이스 출전 풀 — 편성 화면은 M7 Non-goal). ([docs/09]§1, D20)
 const COMPANION_PATHS: Array[String] = [
 	"res://data/companions/hwarang.tres",
@@ -30,10 +34,12 @@ var _mudang: Mudang
 var _camera: Camera2D
 var _debug_label: Label
 var _enemies: EnemySystem
-## 스테이지 데이터 + 웨이브 디렉터 + 거점(M6).
+## 스테이지 데이터 + 웨이브 디렉터 + 거점(M6, 다중 — defend_target 수만큼).
 var _stage: StageDef
 var _wave: WaveDirector
-var _stronghold: Stronghold
+var _strongholds: Array[Stronghold] = []
+## 정적 해저드존(계층① — 구역 내 유닛에 dps). ([docs/10]§6)
+var _hazards: Array[HazardDef] = []
 ## 런 결과: none|win|lose (ObjectiveEval). 결정 시 GameState RESULT 전이 + 시뮬 정지.
 var _result: StringName = &"none"
 ## 메타 저장 1회 가드(M7 — 승리 정산 중복 방지).
@@ -48,14 +54,30 @@ var _rally_cd: float = 0.0
 ## 무녀 업그레이드 풀(M5) + 카드별 현재 레벨({id: level}).
 var _mudang_upgrades: Array[MudangUpgrade] = []
 var _mudang_upgrade_levels: Dictionary = {}
+## 레벨업 3택 일시정지 UI(M5-UI).
+var _levelup_ui: LevelUpChoice
 
 ## 스폰 포인트 위치(WaveDirector가 라운드로빈 사용). 마커는 _setup_spawn_points가 함께 생성. ([docs/04] D24)
 var _spawn_points: Array[Vector2] = []
 var _run_time: float = 0.0
 
 func _ready() -> void:
-	# 월드 고정 배경 그리드(첫 자식 = 뒤에 깔림). 이동 관측용 정적 기준 — 아트 배경 들어오면 교체.
-	add_child(BgGrid.new())
+	# 스테이지 데이터 로드(선택 화면이 GameState에 지정; 기본 1장). 가장 먼저 — 배경/거점/웨이브가 참조.
+	_stage = load(GameState.selected_stage_path) as StageDef
+	if _stage == null:
+		_stage = load(STAGE_PATH) as StageDef
+
+	# 배경: 스테이지별 아트(id.png), 없으면 1장 배경, 그것도 없으면 BgGrid 폴백(eco).
+	var bg_tex := load("res://assets/bg/%s.png" % _stage.id) as Texture2D
+	if bg_tex == null:
+		bg_tex = load("res://assets/bg/stage_hwalinseo.png") as Texture2D
+	if bg_tex != null:
+		var bg := Sprite2D.new()
+		bg.texture = bg_tex
+		bg.scale = Vector2.ONE * (1600.0 / bg_tex.get_width())   # 아레나(~±450) 커버 + 여유
+		add_child(bg)
+	else:
+		add_child(BgGrid.new())
 
 	_mudang = Mudang.new()
 	add_child(_mudang)
@@ -82,20 +104,30 @@ func _ready() -> void:
 		_mudang_upgrades.append(up)
 		_mudang_upgrade_levels[up.id] = 0
 
+	# 레벨업 3택 UI(M5-UI): pending 발생 시 일시정지+카드. auto-pick 대체.
+	_levelup_ui = LevelUpChoice.new()
+	add_child(_levelup_ui)
+	_levelup_ui.setup(_mudang_upgrades, _mudang_upgrade_levels, _mudang)
+
 	_setup_spawn_points()
 
-	# 거점(M6 defend_target): 맵 중앙. 적이 타겟하고 접촉 시 HP 감소, 0이면 패배. ([docs/09]§3)
-	_stronghold = Stronghold.new()
-	_stronghold.position = Vector2.ZERO
-	add_child(_stronghold)
-	# 적 타겟 = 동료 + 거점(매 프레임 재구성은 _physics_process에서; 초기값도 채움).
-	_enemies.ally_targets = []
-	for c in _companions:
-		_enemies.ally_targets.append(c)
-	_enemies.ally_targets.append(_stronghold)
+	# 거점(M6 defend_target): defend_target 목표 수만큼 배치(다중 — docs/10 2장). 0이면 거점 없음.
+	# 거점 HP는 목표 params.target_hp. 적이 타겟하고 접촉 시 HP 감소, 하나라도 0이면 패배. ([docs/09]§3, [docs/10]§6)
+	var di := 0
+	for obj in _stage.objectives:
+		if obj.kind == &"defend_target":
+			var sh := Stronghold.new()
+			sh.max_hp = float(obj.params.get("target_hp", 300.0))
+			sh.position = STRONGHOLD_POSITIONS[di % STRONGHOLD_POSITIONS.size()]
+			add_child(sh)
+			_strongholds.append(sh)
+			di += 1
+	# 정적 해저드존(계층① — StageDef.hazards). 구역 내 유닛에 dps.
+	for hz in _stage.hazards:
+		if hz is HazardDef:
+			_hazards.append(hz)
 
 	# 웨이브 디렉터(M6): StageDef 데이터로 타임라인+예산 스폰. ([docs/04]§2, D18)
-	_stage = load(STAGE_PATH) as StageDef
 	_wave = WaveDirector.new()
 	add_child(_wave)
 	_wave.setup(_stage, _enemies, _spawn_points)
@@ -106,6 +138,19 @@ func _ready() -> void:
 	_debug_label = Label.new()
 	_debug_label.position = Vector2(8, 8)
 	ui_layer.add_child(_debug_label)
+
+	# 미니맵(docs/08 §6): 무녀/동료/거점/보스 마커 + 쓰러짐 표시.
+	var minimap := MinimapHUD.new()
+	minimap.mudang = _mudang
+	minimap.companions = _companions
+	minimap.strongholds = _strongholds
+	minimap.enemies = _enemies
+	ui_layer.add_child(minimap)
+
+	# 서사 카드(D23): 장 시작 일러스트+텍스트(일시정지). StageDef 데이터.
+	var story := StoryCard.new()
+	ui_layer.add_child(story)
+	story.show_card(_stage.intro_image_path, _stage.intro_text)
 
 ## 동료 3인 스폰: 무녀 근처 하드코딩 배치(편성 화면·슬롯은 M7 Non-goal). ([docs/09]§1, D20)
 ## 서로를 같은 편 목록(allies, 자신 포함)으로 공유 — 힐 대상/분리용.
@@ -157,8 +202,9 @@ func _physics_process(delta: float) -> void:
 	for c in _companions:
 		if not c.is_incapacitated():
 			_enemies.ally_targets.append(c)
-	if not _stronghold.is_destroyed():
-		_enemies.ally_targets.append(_stronghold)
+	for sh in _strongholds:
+		if not sh.is_destroyed():
+			_enemies.ally_targets.append(sh)
 
 	# 오라(레버1): 무녀 기준 감속장을 적 시스템에 주입(tick 전). ([docs/01]§2)
 	_enemies.aura_center = _mudang.global_position
@@ -190,8 +236,8 @@ func _physics_process(delta: float) -> void:
 	# 혼불(레버3): 자석 픽업 + 보유 동료혼불 근접 전달(+소폭 회복). ([docs/01]§4, [docs/03]§1)
 	_soulfire.update(delta, _mudang, _companions)
 
-	# 성장(M5): 무녀 레벨업 대기분 auto-pick(3택 UI/일시정지는 M5-UI Non-goal — 흐름 검증용 자동선택).
-	_auto_pick_mudang_upgrades()
+	# 성장(M5-UI): 무녀 레벨업 대기 시 3택 일시정지 카드 표시(선택 시 적용).
+	_levelup_ui.maybe_show()
 
 	# 모여라(레버4): 트리거 + 쿨다운 → 동료 일괄 집결. ([docs/01]§5)
 	if InputAdapter.rally_pressed and _rally_cd <= 0.0:
@@ -199,14 +245,23 @@ func _physics_process(delta: float) -> void:
 			c.start_rally(_mudang.rally_duration)
 		_rally_cd = _mudang.rally_cooldown
 
-	# 접촉 피해(M6: 적별 contact_damage 합산 — 잡귀/처녀귀신/도깨비 혼재). 무녀+동료+거점. ([docs/00] D6-a, [docs/09]§3)
+	# 접촉 피해(M6: 적별 contact_damage 합산 — 혼재). 무녀+동료+거점(다중). ([docs/00] D6-a, [docs/09]§3)
 	_mudang.take_contact_damage(_contact_damage_sum(_mudang.global_position) * delta)
 	for c in _companions:
 		c.take_contact_damage(_contact_damage_sum(c.global_position) * delta)
-	_stronghold.take_contact_damage(_contact_damage_sum(_stronghold.global_position) * delta)
+	for sh in _strongholds:
+		sh.take_contact_damage(_contact_damage_sum(sh.global_position) * delta)
 
-	# 목표/승패 평가(M6): 무녀 사망/거점 파괴=패배, duration 도달=승리. ([docs/04]§3, D14)
-	_result = ObjectiveEval.evaluate(_run_time, _stage.duration, _mudang.hp, _stronghold.hp)
+	# 정적 해저드존(계층①): 구역 내 무녀/동료에 dps. ([docs/10]§6)
+	for hz in _hazards:
+		if hz.contains(_mudang.global_position):
+			_mudang.take_contact_damage(hz.dps * delta)
+		for c in _companions:
+			if hz.contains(c.global_position):
+				c.take_contact_damage(hz.dps * delta)
+
+	# 목표/승패 평가(M6): 무녀 사망/거점(하나라도) 파괴=패배, duration 도달=승리. ([docs/04]§3, D14)
+	_result = ObjectiveEval.evaluate(_run_time, _stage.duration, _mudang.hp, _min_stronghold_hp())
 	if _result != ObjectiveEval.NONE and GameState.state != GameState.S.RESULT:
 		GameState.set_state(GameState.S.RESULT)
 		# 영구메타 정산·해금(M7): 승리 1회만 저장(편성/결과 UI는 M7-UI Non-goal). ([docs/03]§5)
@@ -237,18 +292,14 @@ func _handle_revive(delta: float) -> void:
 		else:
 			c.revive_decay(delta)
 
-## 무녀 레벨업 대기분을 풀에서 미만렙 카드로 auto-pick 적용(M5-UI 3택의 헤드리스/런 플레이스홀더).
-func _auto_pick_mudang_upgrades() -> void:
-	while _mudang.pending_picks() > 0:
-		var pick: MudangUpgrade = null
-		for up in _mudang_upgrades:
-			if _mudang_upgrade_levels[up.id] < up.max_level:
-				pick = up
-				break
-		if pick == null:
-			break   # 전부 만렙 — pending 소진 불가, 무한루프 방지
-		_mudang.apply_upgrade(pick)
-		_mudang_upgrade_levels[pick.id] += 1
+## 거점 중 최소 HP(하나라도 0이면 패배 판정). 거점 없으면 양수 sentinel(거점-패배 미적용).
+func _min_stronghold_hp() -> float:
+	if _strongholds.is_empty():
+		return 1.0
+	var m := INF
+	for sh in _strongholds:
+		m = min(m, sh.hp)
+	return m
 
 ## center 주변 접촉 반경 내 적들의 contact_damage 합(초당). 적 종류 혼재 대응. ([docs/09]§2)
 func _contact_damage_sum(center: Vector2) -> float:
@@ -269,10 +320,11 @@ func _process(_delta: float) -> void:
 			c.def.display_name, int(c.hp), int(c.def.max_hp), c.state_name(),
 			c.companion_level, c.pending_upgrades,
 		]
-	_debug_label.text = "무녀 HP: %d/%d  Lv%d EXP:%d/%d\n거점 HP: %d/%d  결과:%s\n적 수: %d / %d  혼불모트:%d\n혼불 보유:%.0f  넉백쿨:%.1f  모여라쿨:%.1f\n런 시간: %.1f/%.0fs\n동료:%s" % [
+	var sh_min := int(_min_stronghold_hp()) if not _strongholds.is_empty() else 0
+	_debug_label.text = "무녀 HP: %d/%d  Lv%d EXP:%d/%d\n거점: %d개 최소HP %d  결과:%s\n적 수: %d / %d  혼불모트:%d\n혼불 보유:%.0f  넉백쿨:%.1f  모여라쿨:%.1f\n런 시간: %.1f/%.0fs\n동료:%s" % [
 		int(_mudang.hp), int(Mudang.MAX_HP), _mudang.mudang_level,
 		int(_mudang.mudang_exp), _mudang.exp_to_next(_mudang.mudang_level),
-		int(_stronghold.hp), int(_stronghold.max_hp), _result,
+		_strongholds.size(), sh_min, _result,
 		_enemies.active_count(), EnemySystem.CAP, _soulfire.active_count(),
 		_mudang.companion_soulfire_held, _knockback_cd, _rally_cd,
 		_run_time, _stage.duration,

@@ -1,6 +1,6 @@
 ## 적 시스템 — 단순 풀링 백엔드(~150 상한). ([docs/06]§1·§2, [docs/11]§1, [docs/04])
-## 적은 노드가 아니라 병렬 배열(SoA-lite)로 관리하고, 풀 슬롯당 ColorRect 플레이스홀더를 둔다.
-## SoA+MultiMesh 스케일업(500+)은 M-S Non-goal — ~150에선 슬롯당 ColorRect로 충분.
+## 적은 노드가 아니라 병렬 배열(SoA-lite)로 관리하고, 풀 슬롯당 Sprite2D(id별 텍스처)를 둔다.
+## SoA+MultiMesh 스케일업(500+)은 M-S Non-goal — ~150에선 슬롯당 Sprite2D로 충분.
 ## 죽으면 swap-remove로 빈 슬롯 회수(할당 0). 근접 질의는 SpatialHash(물리 미사용).
 ## 공개 API([docs/11]§1): spawn / query_circle / position_of / apply_damage.
 class_name EnemySystem
@@ -8,8 +8,6 @@ extends Node2D
 
 ## 동시 적 상한 — 단순 백엔드 한계(M-S에서 MultiMesh로 500 확장). ([docs/06]§5는 500이나 M1은 ~150)
 const CAP: int = 150
-## 플레이스홀더 한 변 px
-const PLACEHOLDER_SIZE: float = 12.0
 ## 접촉 판정 반경 px — 적 반(半) + 아군 반 근사. ([docs/04]§1 접촉피해=초당)
 const CONTACT_RADIUS: float = 18.0
 
@@ -17,7 +15,8 @@ const CONTACT_RADIUS: float = 18.0
 var _pos: PackedVector2Array = PackedVector2Array()
 var _hp: PackedFloat32Array = PackedFloat32Array()
 var _def: Array[EnemyDef] = []
-var _rects: Array[ColorRect] = []
+## 풀 슬롯 스프라이트(중심 정렬, 스폰 시 def별 텍스처/스케일 설정).
+var _sprites: Array[Sprite2D] = []
 ## 넉백 경직 잔여 시간 s(>0이면 이번 틱 이동 스킵). ([docs/01]§3 0.15s 경직)
 var _stun: PackedFloat32Array = PackedFloat32Array()
 var _count: int = 0
@@ -53,21 +52,27 @@ func spawn(def: EnemyDef, pos: Vector2) -> int:
 		_hp[idx] = def.max_hp
 		_def[idx] = def
 		_stun[idx] = 0.0
-		_rects[idx].visible = true
-		_rects[idx].position = pos - Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE) * 0.5
+		_apply_sprite(_sprites[idx], def, pos)
 	else:
 		_pos.append(pos)
 		_hp.append(def.max_hp)
 		_def.append(def)
 		_stun.append(0.0)
-		var rect := ColorRect.new()
-		rect.color = Color(0.55, 0.75, 0.95)
-		rect.size = Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE)
-		rect.position = pos - rect.size * 0.5
-		add_child(rect)
-		_rects.append(rect)
+		var spr := Sprite2D.new()
+		add_child(spr)
+		_sprites.append(spr)
+		_apply_sprite(spr, def, pos)
 	_count += 1
 	return idx
+
+## 슬롯 스프라이트에 def별 텍스처/스케일/위치 설정(중심 정렬). 텍스처 없으면 비표시.
+func _apply_sprite(spr: Sprite2D, def: EnemyDef, pos: Vector2) -> void:
+	var tex := load("res://assets/sprites/%s.png" % def.id) as Texture2D
+	spr.texture = tex
+	if tex != null:
+		spr.scale = Vector2.ONE * (def.sprite_size / tex.get_width())
+	spr.position = pos
+	spr.visible = tex != null
 
 ## center 반경 r 내 적을 바깥으로 변위(×(1-resist)) + 0.15s 경직. 데미지 없음. ([docs/01]§3)
 ## _hash는 직전 tick에서 구축됨(RunScene은 tick 후 호출). 호출자가 쿨다운/사거리 게이트.
@@ -78,7 +83,7 @@ func apply_knockback(center: Vector2, radius: float, force: float) -> void:
 		var resist: float = _def[idx].knockback_resist
 		_pos[idx] += dir * force * (1.0 - resist)
 		_stun[idx] = 0.15
-		_rects[idx].position = _pos[idx] - Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE) * 0.5
+		_sprites[idx].position = _pos[idx]
 
 ## center 반경 r 안의 적 슬롯 인덱스들. (SpatialHash 위임, 물리 미사용)
 func query_circle(center: Vector2, r: float) -> PackedInt32Array:
@@ -108,16 +113,16 @@ func _kill(idx: int) -> void:
 	if on_kill.is_valid() and _def[idx].drop != null:
 		on_kill.call(_pos[idx], _def[idx].drop)
 	var last := _count - 1
-	# 죽는 적의 ColorRect는 풀 꼬리로 보내 숨김(다음 spawn에서 재사용).
-	var dead_rect := _rects[idx]
-	dead_rect.visible = false
+	# 죽는 적의 Sprite2D는 풀 꼬리로 보내 숨김(다음 spawn에서 재사용).
+	var dead_spr := _sprites[idx]
+	dead_spr.visible = false
 	if idx != last:
 		_pos[idx] = _pos[last]
 		_hp[idx] = _hp[last]
 		_def[idx] = _def[last]
 		_stun[idx] = _stun[last]
-		_rects[idx] = _rects[last]
-		_rects[last] = dead_rect
+		_sprites[idx] = _sprites[last]
+		_sprites[last] = dead_spr
 	_count -= 1
 
 ## 매 틱: SpatialHash 재구축 + AI 이동(최근접 아군 타겟 직진) + 렌더 위치 갱신.
@@ -132,7 +137,7 @@ func tick(dt: float) -> void:
 		# 넉백 경직 중이면 이동 스킵(렌더 위치는 유지). ([docs/01]§3)
 		if _stun[i] > 0.0:
 			_stun[i] = max(0.0, _stun[i] - dt)
-			_rects[i].position = _pos[i] - Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE) * 0.5
+			_sprites[i].position = _pos[i]
 			continue
 		var target := _nearest_target(_pos[i])
 		var to := target - _pos[i]
@@ -142,7 +147,7 @@ func tick(dt: float) -> void:
 			speed *= aura_slow
 		if to.length() > 0.5:
 			_pos[i] += to.normalized() * speed * dt
-		_rects[i].position = _pos[i] - Vector2(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE) * 0.5
+		_sprites[i].position = _pos[i]
 
 ## 적이 향할 아군 타겟 위치. M2: 도발 오버라이드 → 기본 최근접 동료. ([docs/02]§2.1, [docs/04]§1)
 ## from이 어떤 탱(get_taunt_radius()>0)의 도발 반경 안이면 그 탱을 타겟(없으면 최근접 동료).

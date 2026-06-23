@@ -22,3 +22,4 @@ spawn_cost = 0
 exp_value = 40
 level = 3
 drop = SubResource("DropTable_boss_hwalinseo")
+sprite_size = 160.0

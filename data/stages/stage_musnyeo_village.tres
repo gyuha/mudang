@@ -1,0 +1,131 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=25 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/data/hazard_def.gd" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/mob_low.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/ghost_maiden.tres" id="8"]
+[ext_resource type="Resource" path="res://data/enemies/dokkaebi.tres" id="9"]
+[ext_resource type="Resource" path="res://data/enemies/boss_dokkaebi_wrath.tres" id="10"]
+
+[sub_resource type="Resource" id="Obj_survive"]
+script = ExtResource("2")
+kind = &"survive_time"
+params = {
+"time": 420.0
+}
+
+[sub_resource type="Resource" id="Obj_defend1"]
+script = ExtResource("2")
+kind = &"defend_target"
+params = {
+"target_hp": 200.0,
+"label": "초가집 1"
+}
+
+[sub_resource type="Resource" id="Obj_defend2"]
+script = ExtResource("2")
+kind = &"defend_target"
+params = {
+"target_hp": 200.0,
+"label": "초가집 2"
+}
+
+[sub_resource type="Resource" id="Obj_defend3"]
+script = ExtResource("2")
+kind = &"defend_target"
+params = {
+"target_hp": 200.0,
+"label": "초가집 3"
+}
+
+[sub_resource type="Resource" id="SP_mob"]
+script = ExtResource("3")
+enemy = ExtResource("7")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_ghost"]
+script = ExtResource("3")
+enemy = ExtResource("8")
+weight = 0.7
+start_time = 60.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_dokkaebi"]
+script = ExtResource("3")
+enemy = ExtResource("9")
+weight = 0.2
+start_time = 150.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_120_dokkaebi"]
+script = ExtResource("4")
+time = 120.0
+kind = 1
+enemy = ExtResource("9")
+count = 1
+
+[sub_resource type="Resource" id="TL_240_dokkaebi2"]
+script = ExtResource("4")
+time = 240.0
+kind = 1
+enemy = ExtResource("9")
+count = 2
+
+[sub_resource type="Resource" id="TL_330_rush"]
+script = ExtResource("4")
+time = 330.0
+kind = 2
+enemy = ExtResource("8")
+count = 12
+
+[sub_resource type="Resource" id="TL_420_boss"]
+script = ExtResource("4")
+time = 420.0
+kind = 1
+enemy = ExtResource("10")
+count = 1
+
+[sub_resource type="Resource" id="HZ_fire1"]
+script = ExtResource("6")
+pos = Vector2(-180, 120)
+size = Vector2(160, 160)
+dps = 10.0
+hazard_type = &"fire"
+
+[sub_resource type="Resource" id="HZ_fire2"]
+script = ExtResource("6")
+pos = Vector2(220, -140)
+size = Vector2(160, 160)
+dps = 10.0
+hazard_type = &"fire"
+
+[sub_resource type="Resource" id="Reward_village"]
+script = ExtResource("5")
+meta_currency = 70
+first_clear_bonus = 120
+
+[resource]
+script = ExtResource("1")
+id = &"stage_musnyeo_village"
+display_name = "2장 도성 밖 무녀촌"
+duration = 420.0
+intro_image_path = "res://assets/story/ch2_intro.png"
+intro_text = "포졸이 무녀촌을 불사르려는 밤. 불길 속으로 요괴가 몰려든다. 초가집 셋을 지키고, 화랑 호위병과 함께 새벽을 맞아라."
+objectives = [SubResource("Obj_survive"), SubResource("Obj_defend1"), SubResource("Obj_defend2"), SubResource("Obj_defend3")]
+spawn_pool = [SubResource("SP_mob"), SubResource("SP_ghost"), SubResource("SP_dokkaebi")]
+timeline = [SubResource("TL_120_dokkaebi"), SubResource("TL_240_dokkaebi2"), SubResource("TL_330_rush"), SubResource("TL_420_boss")]
+budget_base = 2.5
+budget_growth_per_sec = 0.04
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = [&"stage_hwalinseo"]
+recommended_roles = [&"tank", &"ranged", &"healer"]
+unlock_companion = &"hwarang"
+reward = SubResource("Reward_village")
+hazards = [SubResource("HZ_fire1"), SubResource("HZ_fire2")]

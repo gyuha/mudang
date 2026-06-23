@@ -11,6 +11,9 @@ signal state_changed(new_state: S)
 
 var state: S = S.BOOT
 
+## 진입할 스테이지 데이터 경로(스테이지 선택 화면이 설정; 기본 1장). RunScene가 읽는다. ([docs/10])
+var selected_stage_path: String = "res://data/stages/stage_hwalinseo.tres"
+
 ## 상태 전이. 같은 값으로의 전이는 무시한다.
 func set_state(new_state: S) -> void:
 	if new_state == state:

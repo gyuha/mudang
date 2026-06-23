@@ -22,3 +22,4 @@ spawn_cost = 12
 exp_value = 8
 level = 1
 drop = SubResource("DropTable_dokkaebi")
+sprite_size = 72.0

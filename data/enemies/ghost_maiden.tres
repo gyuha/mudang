@@ -22,3 +22,4 @@ spawn_cost = 3
 exp_value = 2
 level = 1
 drop = SubResource("DropTable_ghost_maiden")
+sprite_size = 36.0
