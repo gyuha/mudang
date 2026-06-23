@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CompanionDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"hwaljabi"
+display_name = "활잡이"
+role_id = &"ranged"
+max_hp = 60.0
+move_speed = 210.0
+attack_damage = 14.0
+attack_period = 0.6
+attack_range = 320.0
+taunt_radius = 0.0
+damage_reduction = 0.0
+kite_min = 80.0
+heal_per_sec = 0.0
+heal_radius = 0.0
+leash_radius = 360.0
+target_priority = 2
+self_preserve = false

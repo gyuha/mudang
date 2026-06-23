@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="MudangUpgrade" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/mudang_upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"knockback_power"
+display_name = "넉백 강화"
+category = &"knockback"
+max_level = 5
+targets = Array[StringName]([&"knockback_force", &"knockback_radius"])
+deltas = Array[float]([60.0, 12.0])

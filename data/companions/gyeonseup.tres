@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CompanionDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gyeonseup"
+display_name = "견습 무당"
+role_id = &"healer"
+max_hp = 45.0
+move_speed = 200.0
+attack_damage = 0.0
+attack_period = 1.0
+attack_range = 0.0
+taunt_radius = 0.0
+damage_reduction = 0.0
+kite_min = 0.0
+heal_per_sec = 6.0
+heal_radius = 140.0
+leash_radius = 360.0
+target_priority = 3
+self_preserve = false

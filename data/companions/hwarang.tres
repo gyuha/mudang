@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CompanionDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"hwarang"
+display_name = "화랑 호위병"
+role_id = &"tank"
+max_hp = 120.0
+move_speed = 200.0
+attack_damage = 8.0
+attack_period = 0.5
+attack_range = 45.0
+taunt_radius = 120.0
+damage_reduction = 0.15
+kite_min = 0.0
+heal_per_sec = 0.0
+heal_radius = 0.0
+leash_radius = 360.0
+target_priority = 0
+self_preserve = false
