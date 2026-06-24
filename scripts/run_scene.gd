@@ -40,6 +40,8 @@ var _wave: WaveDirector
 var _strongholds: Array[Stronghold] = []
 ## 정적 해저드존(계층① — 구역 내 유닛에 dps). ([docs/10]§6)
 var _hazards: Array[HazardDef] = []
+## kill_boss 목표(3장~): 대상 보스 id → 처치 여부. 모두 true면 승리. ([docs/10] 3장)
+var _kill_boss_targets: Dictionary = {}
 ## 런 결과: none|win|lose (ObjectiveEval). 결정 시 GameState RESULT 전이 + 시뮬 정지.
 var _result: StringName = &"none"
 ## 메타 저장 1회 가드(M7 — 승리 정산 중복 방지).
@@ -97,6 +99,8 @@ func _ready() -> void:
 	_soulfire = SoulfireSystem.new()
 	add_child(_soulfire)
 	_enemies.on_kill = _soulfire.spawn_from_drop
+	# kill_boss 목표 처치 감지(3장~).
+	_enemies.on_killed = _on_enemy_killed
 
 	# 무녀 업그레이드 풀(M5). 카드별 레벨 0에서 시작.
 	for p in MUDANG_UPGRADE_PATHS:
@@ -122,6 +126,11 @@ func _ready() -> void:
 			add_child(sh)
 			_strongholds.append(sh)
 			di += 1
+		elif obj.kind == &"kill_boss":
+			# 대상 보스 id를 처치 추적에 등록(타임라인이 스폰, _on_enemy_killed가 처치 감지).
+			var bid := StringName(obj.params.get("enemy_id", ""))
+			if bid != &"":
+				_kill_boss_targets[bid] = false
 	# 정적 해저드존(계층① — StageDef.hazards). 구역 내 유닛에 dps.
 	for hz in _stage.hazards:
 		if hz is HazardDef:
@@ -155,13 +164,17 @@ func _ready() -> void:
 ## 동료 3인 스폰: 무녀 근처 하드코딩 배치(편성 화면·슬롯은 M7 Non-goal). ([docs/09]§1, D20)
 ## 서로를 같은 편 목록(allies, 자신 포함)으로 공유 — 힐 대상/분리용.
 func _spawn_companions() -> void:
-	for i in COMPANION_PATHS.size():
-		var cdef := load(COMPANION_PATHS[i]) as CompanionDef
+	# 편성 화면이 설정한 출전 동료 우선, 없으면 기본 풀(슬라이스 3종) 폴백. ([docs/10] 편성)
+	var paths: Array = GameState.selected_companions if not GameState.selected_companions.is_empty() else COMPANION_PATHS
+	for i in paths.size():
+		var cdef := load(paths[i]) as CompanionDef
+		if cdef == null:
+			continue
 		var c := Companion.new()
 		c.def = cdef
 		c.enemies = _enemies
 		c.mudang = _mudang
-		c.position = _mudang.position + COMPANION_OFFSETS[i]
+		c.position = _mudang.position + COMPANION_OFFSETS[i % COMPANION_OFFSETS.size()]
 		add_child(c)
 		_companions.append(c)
 	# 같은 편 목록 공유(자신 포함).
@@ -260,9 +273,13 @@ func _physics_process(delta: float) -> void:
 			if hz.contains(c.global_position):
 				c.take_contact_damage(hz.dps * delta)
 
-	# 목표/승패 평가(M6): 무녀 사망/거점(하나라도) 파괴=패배, duration 도달=승리. ([docs/04]§3, D14)
-	_result = ObjectiveEval.evaluate(_run_time, _stage.duration, _mudang.hp, _min_stronghold_hp())
+	# 목표/승패 평가(M6): 무녀 사망/거점(하나라도) 파괴=패배, duration 도달 또는 kill_boss 완료=승리. ([docs/04]§3, D14)
+	var has_kb := not _kill_boss_targets.is_empty()
+	_result = ObjectiveEval.evaluate(_run_time, _stage.duration, _mudang.hp, _min_stronghold_hp(),
+		has_kb, has_kb and _all_bosses_killed())
 	if _result != ObjectiveEval.NONE and GameState.state != GameState.S.RESULT:
+		# 결과 화면이 읽을 승패값 기록 후 RESULT 전이.
+		GameState.last_result = _result
 		GameState.set_state(GameState.S.RESULT)
 		# 영구메타 정산·해금(M7): 승리 1회만 저장(편성/결과 UI는 M7-UI Non-goal). ([docs/03]§5)
 		if _result == ObjectiveEval.WIN and not _meta_saved:
@@ -291,6 +308,18 @@ func _handle_revive(delta: float) -> void:
 			c.revive_progress(delta, _mudang.revive_channel_time)
 		else:
 			c.revive_decay(delta)
+
+## 적 처치 훅(kill_boss): 죽은 적이 추적 대상 보스면 처치 표시. ([docs/10] 3장)
+func _on_enemy_killed(def: EnemyDef) -> void:
+	if _kill_boss_targets.has(def.id):
+		_kill_boss_targets[def.id] = true
+
+## kill_boss 대상 보스가 모두 처치됐는가(승리 조건).
+func _all_bosses_killed() -> bool:
+	for killed in _kill_boss_targets.values():
+		if not killed:
+			return false
+	return true
 
 ## 거점 중 최소 HP(하나라도 0이면 패배 판정). 거점 없으면 양수 sentinel(거점-패배 미적용).
 func _min_stronghold_hp() -> float:

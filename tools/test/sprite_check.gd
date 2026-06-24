@@ -1,5 +1,5 @@
-## 유닛 스프라이트 와이어링 검증. 무녀·동료가 ColorRect 폴백이 아니라 Sprite2D(텍스처 로드)를 쓰는지.
-## 시각 적합성은 GUI — 여기선 "텍스처가 실제로 로드돼 스프라이트로 붙었는가"만.
+## 유닛 스프라이트 와이어링 검증. 무녀·동료(Sprite2D)·적(MultiMesh 백엔드, M-S)이 텍스처를 실제 로드해 렌더에 붙였는지.
+## 시각 적합성은 GUI — 여기선 "텍스처가 실제로 로드돼 렌더 노드에 붙었는가"만. (적은 MultiMeshInstance2D.texture)
 extends Node2D
 
 func _ready() -> void:
@@ -20,8 +20,9 @@ func _ready() -> void:
 
 func _has_sprite(node: Node, label: String) -> bool:
 	for ch in node.get_children():
-		if ch is Sprite2D and ch.texture != null:
-			print("  %s sprite=%dx%d" % [label, ch.texture.get_width(), ch.texture.get_height()])
+		# Sprite2D(무녀·동료) 또는 MultiMeshInstance2D(적 배치 렌더) — 둘 다 .texture로 로드 확인.
+		if (ch is Sprite2D or ch is MultiMeshInstance2D) and ch.texture != null:
+			print("  %s tex=%dx%d (%s)" % [label, ch.texture.get_width(), ch.texture.get_height(), ch.get_class()])
 			return true
-	print("  %s NO sprite (fallback?)" % label)
+	print("  %s NO texture (fallback?)" % label)
 	return false

@@ -14,6 +14,12 @@ var state: S = S.BOOT
 ## 진입할 스테이지 데이터 경로(스테이지 선택 화면이 설정; 기본 1장). RunScene가 읽는다. ([docs/10])
 var selected_stage_path: String = "res://data/stages/stage_hwalinseo.tres"
 
+## 출전 편성 동료 경로 목록(편성 화면이 설정). 비어 있으면 RunScene가 기본 풀로 폴백. ([docs/10] 편성)
+var selected_companions: Array[String] = []
+
+## 직전 런 결과(RunScene가 RESULT 전이 시 기록 → 결과 화면이 읽음). none|win|lose
+var last_result: StringName = &"none"
+
 ## 상태 전이. 같은 값으로의 전이는 무시한다.
 func set_state(new_state: S) -> void:
 	if new_state == state:

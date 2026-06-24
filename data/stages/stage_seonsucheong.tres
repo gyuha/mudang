@@ -1,0 +1,111 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=23 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/data/hazard_def.gd" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/boss_seal_wraith.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/mob_low.tres" id="8"]
+[ext_resource type="Resource" path="res://data/enemies/ghost_maiden.tres" id="9"]
+[ext_resource type="Resource" path="res://data/enemies/mask_spirit.tres" id="10"]
+[ext_resource type="Resource" path="res://data/enemies/changgwi.tres" id="11"]
+
+[sub_resource type="Resource" id="Obj_survive"]
+script = ExtResource("2")
+kind = &"survive_time"
+params = {
+"time": 450.0
+}
+
+[sub_resource type="Resource" id="Obj_purify1"]
+script = ExtResource("2")
+kind = &"purify_zone"
+params = {
+"order": 0,
+"charge_time": 20.0
+}
+
+[sub_resource type="Resource" id="Obj_purify2"]
+script = ExtResource("2")
+kind = &"purify_zone"
+params = {
+"order": 1,
+"charge_time": 20.0
+}
+
+[sub_resource type="Resource" id="Obj_purify3"]
+script = ExtResource("2")
+kind = &"purify_zone"
+params = {
+"order": 2,
+"charge_time": 20.0
+}
+
+[sub_resource type="Resource" id="SP_mob"]
+script = ExtResource("3")
+enemy = ExtResource("8")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_ghost"]
+script = ExtResource("3")
+enemy = ExtResource("9")
+weight = 0.6
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_mask"]
+script = ExtResource("3")
+enemy = ExtResource("10")
+weight = 0.6
+start_time = 90.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_changgwi"]
+script = ExtResource("3")
+enemy = ExtResource("11")
+weight = 0.5
+start_time = 150.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_300_boss"]
+script = ExtResource("4")
+time = 300.0
+kind = 1
+enemy = ExtResource("7")
+count = 1
+
+[sub_resource type="Resource" id="HZ_seal"]
+script = ExtResource("6")
+pos = Vector2(0, -160)
+size = Vector2(180, 180)
+dps = 11.0
+hazard_type = &"curse"
+
+[sub_resource type="Resource" id="Reward_seonsucheong"]
+script = ExtResource("5")
+meta_currency = 130
+first_clear_bonus = 180
+
+[resource]
+script = ExtResource("1")
+id = &"stage_seonsucheong"
+display_name = "5장 성수청의 봉인"
+duration = 450.0
+intro_image_path = ""
+intro_text = "폐지된 성수청 지하, 봉인진 셋을 순서대로 정화해야 한다. 깨어나는 원혼의 웨이브 속에서 봉인된 원귀와 맞선다. 역병의 근원이 왕실임을 안다."
+objectives = [SubResource("Obj_survive"), SubResource("Obj_purify1"), SubResource("Obj_purify2"), SubResource("Obj_purify3")]
+spawn_pool = [SubResource("SP_mob"), SubResource("SP_ghost"), SubResource("SP_mask"), SubResource("SP_changgwi")]
+timeline = [SubResource("TL_300_boss")]
+budget_base = 2.8
+budget_growth_per_sec = 0.045
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = [&"stage_yangban_gut"]
+recommended_roles = [&"aoe", &"healer", &"tank"]
+unlock_companion = &""
+reward = SubResource("Reward_seonsucheong")
+hazards = [SubResource("HZ_seal")]

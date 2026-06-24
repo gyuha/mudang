@@ -1,0 +1,124 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=27 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/data/hazard_def.gd" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/boss_royal_wraith.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/mob_low.tres" id="8"]
+[ext_resource type="Resource" path="res://data/enemies/ghost_maiden.tres" id="9"]
+[ext_resource type="Resource" path="res://data/enemies/dokkaebi.tres" id="10"]
+[ext_resource type="Resource" path="res://data/enemies/changgwi.tres" id="11"]
+[ext_resource type="Resource" path="res://data/enemies/mask_spirit.tres" id="12"]
+[ext_resource type="Resource" path="res://data/enemies/plague.tres" id="13"]
+
+[sub_resource type="Resource" id="Obj_kill_boss"]
+script = ExtResource("2")
+kind = &"kill_boss"
+params = {
+"enemy_id": "boss_royal_wraith"
+}
+
+[sub_resource type="Resource" id="Obj_survive"]
+script = ExtResource("2")
+kind = &"survive_time"
+params = {
+"time": 480.0
+}
+
+[sub_resource type="Resource" id="SP_mob"]
+script = ExtResource("3")
+enemy = ExtResource("8")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_ghost"]
+script = ExtResource("3")
+enemy = ExtResource("9")
+weight = 0.6
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_dokkaebi"]
+script = ExtResource("3")
+enemy = ExtResource("10")
+weight = 0.4
+start_time = 60.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_changgwi"]
+script = ExtResource("3")
+enemy = ExtResource("11")
+weight = 0.4
+start_time = 90.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_mask"]
+script = ExtResource("3")
+enemy = ExtResource("12")
+weight = 0.4
+start_time = 120.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_plague"]
+script = ExtResource("3")
+enemy = ExtResource("13")
+weight = 0.4
+start_time = 150.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_200_rush"]
+script = ExtResource("4")
+time = 200.0
+kind = 2
+enemy = ExtResource("9")
+count = 16
+
+[sub_resource type="Resource" id="TL_260_boss"]
+script = ExtResource("4")
+time = 260.0
+kind = 1
+enemy = ExtResource("7")
+count = 1
+
+[sub_resource type="Resource" id="HZ_court1"]
+script = ExtResource("6")
+pos = Vector2(-260, 180)
+size = Vector2(180, 180)
+dps = 13.0
+hazard_type = &"curse"
+
+[sub_resource type="Resource" id="HZ_court2"]
+script = ExtResource("6")
+pos = Vector2(260, -180)
+size = Vector2(180, 180)
+dps = 13.0
+hazard_type = &"fire"
+
+[sub_resource type="Resource" id="Reward_palace"]
+script = ExtResource("5")
+meta_currency = 180
+first_clear_bonus = 250
+
+[resource]
+script = ExtResource("1")
+id = &"stage_palace_wraith"
+display_name = "6장 궁궐의 원귀"
+duration = 480.0
+intro_image_path = ""
+intro_text = "왕실의 저주 굿이 팔도의 원혼을 깨웠다. 마지막 굿판. 전 적종이 총출동하는 궁궐 밤마당에서 궁중 원귀를 베어 새벽을 되찾아라."
+objectives = [SubResource("Obj_kill_boss"), SubResource("Obj_survive")]
+spawn_pool = [SubResource("SP_mob"), SubResource("SP_ghost"), SubResource("SP_dokkaebi"), SubResource("SP_changgwi"), SubResource("SP_mask"), SubResource("SP_plague")]
+timeline = [SubResource("TL_200_rush"), SubResource("TL_260_boss")]
+budget_base = 3.0
+budget_growth_per_sec = 0.05
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = [&"stage_seonsucheong"]
+recommended_roles = [&"tank", &"ranged", &"healer", &"aoe"]
+unlock_companion = &""
+reward = SubResource("Reward_palace")
+hazards = [SubResource("HZ_court1"), SubResource("HZ_court2")]

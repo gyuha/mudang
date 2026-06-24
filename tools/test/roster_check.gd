@@ -15,7 +15,8 @@ func _ready() -> void:
 		ok = ok and stat_ok and idx >= 0
 	var tex_ok := false
 	for ch in e.get_children():
-		if ch is Sprite2D and ch.texture != null:
+		# 적 렌더는 MultiMesh 백엔드(M-S) — 텍스처별 MultiMeshInstance2D.texture로 로드 확인.
+		if (ch is Sprite2D or ch is MultiMeshInstance2D) and ch.texture != null:
 			tex_ok = true
 	print("  enemy sprites loaded=%s" % tex_ok)
 	print("ROSTER VERDICT => %s" % ["PASS" if (ok and tex_ok) else "FAIL"])

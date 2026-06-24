@@ -1,0 +1,86 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/data/hazard_def.gd" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/boss_curse.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/mask_spirit.tres" id="8"]
+[ext_resource type="Resource" path="res://data/enemies/plague.tres" id="9"]
+
+[sub_resource type="Resource" id="Obj_survive"]
+script = ExtResource("2")
+kind = &"survive_time"
+params = {
+"time": 420.0
+}
+
+[sub_resource type="Resource" id="Obj_purify"]
+script = ExtResource("2")
+kind = &"purify_zone"
+params = {
+"order": 0,
+"charge_time": 25.0
+}
+
+[sub_resource type="Resource" id="SP_mask"]
+script = ExtResource("3")
+enemy = ExtResource("8")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_plague"]
+script = ExtResource("3")
+enemy = ExtResource("9")
+weight = 0.8
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_240_boss"]
+script = ExtResource("4")
+time = 240.0
+kind = 1
+enemy = ExtResource("7")
+count = 1
+
+[sub_resource type="Resource" id="HZ_poison1"]
+script = ExtResource("6")
+pos = Vector2(-200, -80)
+size = Vector2(170, 170)
+dps = 12.0
+hazard_type = &"poison"
+
+[sub_resource type="Resource" id="HZ_poison2"]
+script = ExtResource("6")
+pos = Vector2(200, 100)
+size = Vector2(170, 170)
+dps = 12.0
+hazard_type = &"poison"
+
+[sub_resource type="Resource" id="Reward_yangban"]
+script = ExtResource("5")
+meta_currency = 110
+first_clear_bonus = 160
+
+[resource]
+script = ExtResource("1")
+id = &"stage_yangban_gut"
+display_name = "4장 양반가의 은밀한 굿"
+duration = 420.0
+intro_image_path = ""
+intro_text = "양반가의 굿이 수명을 빼앗는 저주 의식이었다. 탈귀의 저주와 역병귀의 독 장판 속에서 제단을 정화하고 새벽까지 버텨라."
+objectives = [SubResource("Obj_survive"), SubResource("Obj_purify")]
+spawn_pool = [SubResource("SP_mask"), SubResource("SP_plague")]
+timeline = [SubResource("TL_240_boss")]
+budget_base = 2.6
+budget_growth_per_sec = 0.042
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = [&"stage_mountain_pass"]
+recommended_roles = [&"healer", &"ranged"]
+unlock_companion = &""
+reward = SubResource("Reward_yangban")
+hazards = [SubResource("HZ_poison1"), SubResource("HZ_poison2")]

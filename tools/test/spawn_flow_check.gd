@@ -24,7 +24,7 @@ func _ready() -> void:
 		if n > 0:
 			spawned = true
 			for i in n:
-				if rs._enemies.position_of(i).distance_to(rs._stronghold.global_position) < 200.0:
+				if rs._enemies.position_of(i).distance_to(rs._strongholds[0].global_position) < 200.0:
 					approached = true
 
 	var result_sane := rs._result == ObjectiveEval.NONE

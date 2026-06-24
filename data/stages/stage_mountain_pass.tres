@@ -1,0 +1,77 @@
+[gd_resource type="Resource" script_class="StageDef" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stage_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/objective_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/spawn_pool_entry.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/data/timeline_event.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/data/stage_reward.gd" id="5"]
+[ext_resource type="Resource" path="res://data/enemies/boss_tiger.tres" id="6"]
+[ext_resource type="Resource" path="res://data/enemies/changgwi.tres" id="7"]
+[ext_resource type="Resource" path="res://data/enemies/mob_low.tres" id="8"]
+
+[sub_resource type="Resource" id="Obj_kill_boss"]
+script = ExtResource("2")
+kind = &"kill_boss"
+params = {
+"enemy_id": "boss_tiger"
+}
+
+[sub_resource type="Resource" id="Obj_purify"]
+script = ExtResource("2")
+kind = &"purify_zone"
+params = {
+"order": 0,
+"charge_time": 20.0
+}
+
+[sub_resource type="Resource" id="SP_changgwi"]
+script = ExtResource("3")
+enemy = ExtResource("7")
+weight = 1.0
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="SP_mob"]
+script = ExtResource("3")
+enemy = ExtResource("8")
+weight = 0.6
+start_time = 0.0
+end_time = -1.0
+
+[sub_resource type="Resource" id="TL_100_rush"]
+script = ExtResource("4")
+time = 100.0
+kind = 2
+enemy = ExtResource("7")
+count = 10
+
+[sub_resource type="Resource" id="TL_150_boss"]
+script = ExtResource("4")
+time = 150.0
+kind = 1
+enemy = ExtResource("6")
+count = 1
+
+[sub_resource type="Resource" id="Reward_mountain"]
+script = ExtResource("5")
+meta_currency = 90
+first_clear_bonus = 150
+
+[resource]
+script = ExtResource("1")
+id = &"stage_mountain_pass"
+display_name = "3장 산길의 창귀"
+duration = 300.0
+intro_image_path = ""
+intro_text = "역병의 근원은 산속 폐사당. 호랑이에게 죽은 자들의 창귀가 좁은 산길을 메운다. 안개가 시야를 가리니 미니맵으로 돌진을 미리 읽고, 호랑이 요괴를 잡아라."
+objectives = [SubResource("Obj_kill_boss"), SubResource("Obj_purify")]
+spawn_pool = [SubResource("SP_changgwi"), SubResource("SP_mob")]
+timeline = [SubResource("TL_100_rush"), SubResource("TL_150_boss")]
+budget_base = 2.5
+budget_growth_per_sec = 0.04
+max_active_enemies = 500
+soulfire_ratio = 0.6
+unlock_requires = [&"stage_musnyeo_village"]
+recommended_roles = [&"ranged", &"tank"]
+unlock_companion = &"hwaljabi"
+reward = SubResource("Reward_mountain")

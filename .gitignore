@@ -7,6 +7,8 @@
 
 # 툴 런타임 상태(로컬)
 .omx/
+# codex-image 중간 작업 산출물(최종 에셋은 assets/)
+tmp/
 
 # forge 루프 상태: 휘발 상태는 무시, 영구 문서/이력은 추적
 .forge/*
