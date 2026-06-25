@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CompanionDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"talchum"
+display_name = "탈 쓴 퇴마사"
+role_id = &"aoe"
+max_hp = 150.0
+move_speed = 185.0
+attack_damage = 6.0
+attack_period = 0.7
+attack_range = 55.0
+taunt_radius = 150.0
+damage_reduction = 0.25
+aoe_radius = 90.0
+leash_radius = 360.0
+target_priority = 0
+self_preserve = false

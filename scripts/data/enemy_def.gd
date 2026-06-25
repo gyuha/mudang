@@ -11,6 +11,12 @@ extends Resource
 @export var contact_damage: float = 4.0
 ## AI 거동(무녀 직접 추격 없음): rush_companion | target_companion | rush_lowhp | elite | ranged | boss
 @export var ai_kind: StringName = &"rush_companion"
+## 원거리 공격(ai_kind=ranged): 0이면 근접(접촉)만. >0이면 이 거리에서 멈춰 attack_period마다 contact_damage를 원거리로 가함. ([docs/04]§1)
+@export var attack_range: float = 0.0
+@export var attack_period: float = 1.0
+## 보스 다페이즈 소환(ai_kind=boss): HP 임계 전환 시 1회 소환할 잡몹 id와 마릿수. summon_id="" 이면 소환 없음. ([docs/10] 3페이즈 보스)
+@export var summon_id: StringName = &""
+@export var summon_count: int = 0
 ## 예산 스폰 비용 ([docs/04]§2.2)
 @export var spawn_cost: int = 1
 ## 처치 시 부여 EXP(혼불 환산 외 별도 표기용)

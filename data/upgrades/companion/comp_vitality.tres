@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CompanionUpgrade" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"comp_vitality"
+display_name = "기력 단련"
+role_filter = &"any"
+max_level = 5
+targets = Array[StringName]([&"max_hp"])
+deltas = Array[float]([20.0])

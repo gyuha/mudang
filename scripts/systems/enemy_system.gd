@@ -6,8 +6,10 @@
 class_name EnemySystem
 extends Node2D
 
-## 동시 적 상한 — MultiMesh 백엔드로 500+ 지원. ([docs/06]§5 PC 500)
+## 동시 적 상한(하드 한계) — MultiMesh 백엔드로 500+ 지원. ([docs/06]§5 PC 500)
 const CAP: int = 512
+## 런타임 동시 상한 — 모바일 열화 시 250 등으로 하향(RunScene가 설정). spawn은 min(CAP, active_limit)로 클램프. ([docs/06] 모바일 250)
+var active_limit: int = CAP
 ## 접촉 판정 반경 px — 적 반(半) + 아군 반 근사. ([docs/04]§1 접촉피해=초당)
 const CONTACT_RADIUS: float = 18.0
 
@@ -19,6 +21,10 @@ var _def: Array[EnemyDef] = []
 var _buckets: Dictionary = {}
 ## 넉백 경직 잔여 시간 s(>0이면 이번 틱 이동 스킵). ([docs/01]§3 0.15s 경직)
 var _stun: PackedFloat32Array = PackedFloat32Array()
+## 원거리 공격 쿨다운 잔여 s(ai_kind=ranged). 사거리 내에서 0 도달 시 발사 후 attack_period로 리셋. ([docs/04]§1)
+var _atk_cd: PackedFloat32Array = PackedFloat32Array()
+## 보스 현재 페이즈(ai_kind=boss). HP 임계 하향 시 증가 — 전환마다 1회 소환 가드 + 속도 escalation. ([docs/10])
+var _phase: PackedInt32Array = PackedInt32Array()
 var _count: int = 0
 
 ## 적이 향하는 아군 타겟 노드 목록(M1=무녀만, M2 동료 확장 가능). 각 원소는 global_position을 가진 Node2D.
@@ -45,7 +51,7 @@ func active_count() -> int:
 
 ## 적 1마리 스폰. 상한 도달 시 무시(클램프). 풀 슬롯 인덱스를 반환(-1=상한).
 func spawn(def: EnemyDef, pos: Vector2) -> int:
-	if _count >= CAP:
+	if _count >= min(CAP, active_limit):
 		return -1
 	var idx := _count
 	if idx < _pos.size():
@@ -54,11 +60,15 @@ func spawn(def: EnemyDef, pos: Vector2) -> int:
 		_hp[idx] = def.max_hp
 		_def[idx] = def
 		_stun[idx] = 0.0
+		_atk_cd[idx] = 0.0
+		_phase[idx] = 0
 	else:
 		_pos.append(pos)
 		_hp.append(def.max_hp)
 		_def.append(def)
 		_stun.append(0.0)
+		_atk_cd.append(0.0)
+		_phase.append(0)
 	# 이 적종 텍스처 버킷 보장(렌더는 _render가 매 tick 일괄 기록).
 	_ensure_bucket(def)
 	_count += 1
@@ -127,6 +137,19 @@ func apply_damage(idx: int, amount: float) -> void:
 	if _hp[idx] <= 0.0:
 		_kill(idx)
 
+## center 반경 r 내 적 다수에 동시 피해(광역 베기 — aoe 동료). 처치 시 swap-remove 인덱스 무효화를
+## 피하려 스냅샷 인덱스를 내림차순으로 처리(낮은 인덱스 슬롯은 보존됨). 적용한 적 수 반환.
+func apply_damage_circle(center: Vector2, r: float, amount: float) -> int:
+	var idxs := Array(query_circle(center, r))
+	idxs.sort()
+	idxs.reverse()   # 내림차순: 처치(꼬리 스왑)가 더 낮은 대상 슬롯을 건드리지 않음
+	var hit := 0
+	for idx in idxs:
+		if idx < _count:
+			apply_damage(idx, amount)
+			hit += 1
+	return hit
+
 ## --- 내부 ---
 
 ## swap-remove: 마지막 활성 슬롯을 idx로 당겨오고 _count 감소. 렌더는 _render가 _count 기준으로 재기록.
@@ -143,6 +166,8 @@ func _kill(idx: int) -> void:
 		_hp[idx] = _hp[last]
 		_def[idx] = _def[last]
 		_stun[idx] = _stun[last]
+		_atk_cd[idx] = _atk_cd[last]
+		_phase[idx] = _phase[last]
 	_count -= 1
 
 ## 매 틱: SpatialHash 재구축 + AI 이동(최근접 아군 타겟 직진) + MultiMesh 렌더 일괄 갱신.
@@ -158,19 +183,72 @@ func tick(dt: float) -> void:
 			if _stun[i] > 0.0:
 				_stun[i] = max(0.0, _stun[i] - dt)
 				continue
-			var target := _nearest_target(_pos[i])
-			var to := target - _pos[i]
+			var def := _def[i]
 			# 오라 감속: 무녀 반경 내면 이동속도 ×aura_slow. (매 적 Area2D 금지 — 거리검사) ([docs/01]§2)
-			var speed: float = _def[i].move_speed
+			var speed: float = def.move_speed
 			if aura_radius > 0.0 and _pos[i].distance_to(aura_center) <= aura_radius:
 				speed *= aura_slow
-			if to.length() > 0.5:
-				_pos[i] += to.normalized() * speed * dt
+			# 보스 다페이즈: HP 임계 하향 시 속도 escalation + 전환 1회 소환. ([docs/10])
+			if def.ai_kind == &"boss":
+				speed *= _boss_phase(i, def)
+			# 원거리(ranged): 사거리에서 멈춰 주기적 원거리 피해. 그 외: 타겟으로 직진.
+			if def.ai_kind == &"ranged" and def.attack_range > 0.0:
+				_tick_ranged(i, def, speed, dt)
+			else:
+				var to := _nearest_target(_pos[i], def) - _pos[i]
+				if to.length() > 0.5:
+					_pos[i] += to.normalized() * speed * dt
 	_render()
 
-## 적이 향할 아군 타겟 위치. M2: 도발 오버라이드 → 기본 최근접 동료. ([docs/02]§2.1, [docs/04]§1)
-## from이 어떤 탱(get_taunt_radius()>0)의 도발 반경 안이면 그 탱을 타겟(없으면 최근접 동료).
-func _nearest_target(from: Vector2) -> Vector2:
+## 원거리 적 1마리: 동료를 attack_range까지 접근 후 정지, attack_period마다 원거리 피해(접촉 없이).
+## 동료가 없으면 최근접 아군(거점)으로 접근(폴백).
+func _tick_ranged(i: int, def: EnemyDef, speed: float, dt: float) -> void:
+	_atk_cd[i] = max(0.0, _atk_cd[i] - dt)
+	var tgt := _nearest_companion(_pos[i])
+	if tgt == null:
+		var to := _nearest_ally_pos(_pos[i]) - _pos[i]
+		if to.length() > 0.5:
+			_pos[i] += to.normalized() * speed * dt
+		return
+	var tp: Vector2 = tgt.global_position
+	var dist := _pos[i].distance_to(tp)
+	if dist > def.attack_range:
+		_pos[i] += (tp - _pos[i]).normalized() * speed * dt   # 사거리 밖이면 접근
+	elif _atk_cd[i] <= 0.0:
+		if tgt.has_method(&"take_contact_damage"):
+			tgt.take_contact_damage(def.contact_damage)   # 사거리 내 정지 + 발사
+		_atk_cd[i] = def.attack_period
+
+## 보스 페이즈 처리: HP 비율로 페이즈(>=66% 0, >=33% 1, else 2) 산출, 하향 전환 시 1회 소환.
+## 이동속도 배율(1 + 0.25×phase)을 반환. ([docs/10] 3페이즈 보스)
+func _boss_phase(i: int, def: EnemyDef) -> float:
+	var ratio := _hp[i] / def.max_hp
+	var phase := 0
+	if ratio < 0.33:
+		phase = 2
+	elif ratio < 0.66:
+		phase = 1
+	if phase > _phase[i]:
+		_phase[i] = phase
+		_boss_summon(i, def)
+	return 1.0 + 0.25 * float(phase)
+
+## 페이즈 전환 시 잡몹 소환(보스 주변 분산). summon_id="" 또는 count<=0이면 무소환.
+func _boss_summon(i: int, def: EnemyDef) -> void:
+	if def.summon_id == &"" or def.summon_count <= 0:
+		return
+	var minion := load("res://data/enemies/%s.tres" % def.summon_id) as EnemyDef
+	if minion == null:
+		return
+	var center := _pos[i]
+	for k in def.summon_count:
+		var ang := TAU * float(k) / float(def.summon_count)
+		spawn(minion, center + Vector2(cos(ang), sin(ang)) * 60.0)
+
+## 적이 향할 아군 타겟 위치. 도발 오버라이드 → ai_kind별 타겟 선택. ([docs/02]§2.1, [docs/04]§1)
+## 도발(탱 어그로)은 ai_kind 무관하게 최우선. 그다음 ai_kind 분기:
+##   target_companion/ranged = 동료만(거점 무시), rush_lowhp = 최저 HP 동료, 그 외(rush_companion/elite/boss) = 최근접 아군.
+func _nearest_target(from: Vector2, def: EnemyDef) -> Vector2:
 	# 도발 오버라이드: 도발 반경 내 가장 가까운 탱이 우선.
 	var taunt_best := Vector2.ZERO
 	var taunt_d := INF
@@ -185,12 +263,49 @@ func _nearest_target(from: Vector2) -> Vector2:
 					taunt_best = tp
 	if taunt_d < INF:
 		return taunt_best
-	# 기본: 최근접 아군 타겟.
-	var best := ally_targets[0].global_position
+
+	# ai_kind별 타겟 선택(동료 없으면 최근접 아군 폴백).
+	match def.ai_kind:
+		&"target_companion", &"ranged":
+			var c := _nearest_companion(from)
+			if c != null:
+				return c.global_position
+		&"rush_lowhp":
+			var c := _lowest_hp_companion()
+			if c != null:
+				return c.global_position
+	# 기본(rush_companion/elite/boss) + 폴백: 최근접 아군(동료/거점).
+	return _nearest_ally_pos(from)
+
+## 최근접 아군(동료/거점) 위치. ally_targets 비어있지 않을 때만 호출.
+func _nearest_ally_pos(from: Vector2) -> Vector2:
+	var best: Vector2 = ally_targets[0].global_position
 	var best_d := from.distance_squared_to(best)
 	for t in ally_targets:
 		var d := from.distance_squared_to(t.global_position)
 		if d < best_d:
 			best_d = d
 			best = t.global_position
+	return best
+
+## 최근접 동료(Companion만, 거점 제외). 없으면 null.
+func _nearest_companion(from: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_d := INF
+	for t in ally_targets:
+		if t is Companion:
+			var d := from.distance_squared_to(t.global_position)
+			if d < best_d:
+				best_d = d
+				best = t
+	return best
+
+## 최저 HP 동료(Companion만). 없으면 null.
+func _lowest_hp_companion() -> Node2D:
+	var best: Node2D = null
+	var best_hp := INF
+	for t in ally_targets:
+		if t is Companion and t.hp < best_hp:
+			best_hp = t.hp
+			best = t
 	return best

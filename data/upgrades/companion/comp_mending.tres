@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CompanionUpgrade" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"comp_mending"
+display_name = "치유 강화"
+role_filter = &"healer"
+max_level = 5
+targets = Array[StringName]([&"heal_per_sec"])
+deltas = Array[float]([2.0])

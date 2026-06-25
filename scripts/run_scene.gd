@@ -30,6 +30,13 @@ const MUDANG_UPGRADE_PATHS: Array[String] = [
 	"res://data/upgrades/mudang/knockback_power.tres",
 	"res://data/upgrades/mudang/transfer_speed.tres",
 ]
+## 동료 성장 카드 풀(M5). 동료 pending을 비정지 자동 최선픽으로 소비. ([docs/03]§3)
+const COMPANION_UPGRADE_PATHS: Array[String] = [
+	"res://data/upgrades/companion/comp_vitality.tres",
+	"res://data/upgrades/companion/comp_power.tres",
+	"res://data/upgrades/companion/comp_mending.tres",
+]
+var _companion_upgrades: Array[CompanionUpgrade] = []
 var _mudang: Mudang
 var _camera: Camera2D
 var _debug_label: Label
@@ -42,6 +49,8 @@ var _strongholds: Array[Stronghold] = []
 var _hazards: Array[HazardDef] = []
 ## kill_boss 목표(3장~): 대상 보스 id → 처치 여부. 모두 true면 승리. ([docs/10] 3장)
 var _kill_boss_targets: Dictionary = {}
+## purify_zone 목표(4·5장~): 각 {pos, radius, charge_time, progress}. 구역 내 아군 점거 시 충전, 전부 만충 시 승리. ([docs/10]§6)
+var _purify_zones: Array = []
 ## 런 결과: none|win|lose (ObjectiveEval). 결정 시 GameState RESULT 전이 + 시뮬 정지.
 var _result: StringName = &"none"
 ## 메타 저장 1회 가드(M7 — 승리 정산 중복 방지).
@@ -91,6 +100,8 @@ func _ready() -> void:
 
 	# 적 시스템. 아군 타겟은 동료(M2: 무녀 직접 타겟 아님 — D6-a/[docs/04]). 동료 생성 후 등록.
 	_enemies = EnemySystem.new()
+	# 모바일 열화: 저사양 토글 시 동시 적 상한 하향(250). ([docs/06] 모바일 250)
+	_enemies.active_limit = GameState.MOBILE_ENEMY_CAP if GameState.low_spec else EnemySystem.CAP
 	add_child(_enemies)
 
 	_spawn_companions()
@@ -107,6 +118,12 @@ func _ready() -> void:
 		var up := load(p) as MudangUpgrade
 		_mudang_upgrades.append(up)
 		_mudang_upgrade_levels[up.id] = 0
+
+	# 동료 성장 카드 풀(M5). 동료별 레벨은 Companion이 보유.
+	for p in COMPANION_UPGRADE_PATHS:
+		var cu := load(p) as CompanionUpgrade
+		if cu != null:
+			_companion_upgrades.append(cu)
 
 	# 레벨업 3택 UI(M5-UI): pending 발생 시 일시정지+카드. auto-pick 대체.
 	_levelup_ui = LevelUpChoice.new()
@@ -131,6 +148,14 @@ func _ready() -> void:
 			var bid := StringName(obj.params.get("enemy_id", ""))
 			if bid != &"":
 				_kill_boss_targets[bid] = false
+		elif obj.kind == &"purify_zone":
+			# 정화 구역 등록(구역 내 아군 점거 시 충전). pos/radius는 데이터, 없으면 기본값.
+			_purify_zones.append({
+				"pos": obj.params.get("pos", Vector2.ZERO),
+				"radius": float(obj.params.get("radius", 180.0)),
+				"charge_time": float(obj.params.get("charge_time", 20.0)),
+				"progress": 0.0,
+			})
 	# 정적 해저드존(계층① — StageDef.hazards). 구역 내 유닛에 dps.
 	for hz in _stage.hazards:
 		if hz is HazardDef:
@@ -237,6 +262,7 @@ func _physics_process(delta: float) -> void:
 	# 동료 AI 한 스텝(RunScene이 틱 소유 — 결정성, EnemySystem.tick과 동일 패턴).
 	for c in _companions:
 		c.step(delta)
+		_auto_pick_companion_upgrade(c)   # 비정지 자동 최선픽(M5-UI 슬로모/클릭은 Non-goal)
 
 	# 케어(M4): 부활 채널(무녀 정지+근접) + 상실 디버프(혼불 수집 효율↓). ([docs/02]§4·§5)
 	_handle_revive(delta)
@@ -273,10 +299,16 @@ func _physics_process(delta: float) -> void:
 			if hz.contains(c.global_position):
 				c.take_contact_damage(hz.dps * delta)
 
-	# 목표/승패 평가(M6): 무녀 사망/거점(하나라도) 파괴=패배, duration 도달 또는 kill_boss 완료=승리. ([docs/04]§3, D14)
+	# 정화 구역(4·5장~): 구역 내 아군 점거 시 충전(평가 전 갱신).
+	var has_pz := not _purify_zones.is_empty()
+	if has_pz:
+		_update_purify(delta)
+
+	# 목표/승패 평가(M6): 무녀 사망/거점 파괴=패배, kill_boss/purify_zone 완료 또는 duration 도달=승리. ([docs/04]§3, D14)
 	var has_kb := not _kill_boss_targets.is_empty()
 	_result = ObjectiveEval.evaluate(_run_time, _stage.duration, _mudang.hp, _min_stronghold_hp(),
-		has_kb, has_kb and _all_bosses_killed())
+		has_kb, has_kb and _all_bosses_killed(),
+		has_pz, has_pz and _all_zones_purified())
 	if _result != ObjectiveEval.NONE and GameState.state != GameState.S.RESULT:
 		# 결과 화면이 읽을 승패값 기록 후 RESULT 전이.
 		GameState.last_result = _result
@@ -287,6 +319,18 @@ func _physics_process(delta: float) -> void:
 			meta.record_clear(_stage, _run_time)
 			meta.save()
 			_meta_saved = true
+
+## 동료 pending을 비정지 자동 최선픽으로 소비. 역할 일치+미만렙 카드를 앞에서부터 적용(만렙뿐이면 중단). ([docs/03]§3, M5-UI 슬로모/클릭 Non-goal)
+func _auto_pick_companion_upgrade(c: Companion) -> void:
+	while c.pending_upgrades > 0:
+		var picked: CompanionUpgrade = null
+		for up in _companion_upgrades:
+			if c.can_take_upgrade(up):
+				picked = up
+				break
+		if picked == null:
+			break
+		c.apply_companion_upgrade(picked)
 
 ## 부활 채널(M4): 무녀가 정지(이동 입력≈0)하고 revive_range 내 쓰러진 동료가 있으면
 ## 가장 가까운 1명의 게이지를 충전, 그 외 쓰러진 동료는 감쇠. ([docs/02]§5, D13)
@@ -318,6 +362,30 @@ func _on_enemy_killed(def: EnemyDef) -> void:
 func _all_bosses_killed() -> bool:
 	for killed in _kill_boss_targets.values():
 		if not killed:
+			return false
+	return true
+
+## 정화 구역 충전(매 틱): 구역 내 아군(무녀/전투가능 동료) 1명 이상이면 progress += dt/charge_time(상한 1). ([docs/10]§6)
+func _update_purify(delta: float) -> void:
+	for z in _purify_zones:
+		if z["progress"] >= 1.0:
+			continue
+		var radius: float = z["radius"]
+		var zpos: Vector2 = z["pos"]
+		var occupied: bool = _mudang.global_position.distance_to(zpos) <= radius
+		if not occupied:
+			for c in _companions:
+				if not c.is_incapacitated() and c.global_position.distance_to(zpos) <= radius:
+					occupied = true
+					break
+		if occupied:
+			var ct: float = z["charge_time"]
+			z["progress"] = min(1.0, float(z["progress"]) + delta / ct)
+
+## 모든 정화 구역이 만충됐는가(승리 조건).
+func _all_zones_purified() -> bool:
+	for z in _purify_zones:
+		if z["progress"] < 1.0:
 			return false
 	return true
 

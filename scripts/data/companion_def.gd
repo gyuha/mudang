@@ -16,6 +16,8 @@ extends Resource
 @export var attack_period: float = 0.5
 ## 교전/사격 거리 px
 @export var attack_range: float = 45.0
+## >0 이면 광역 베기(aoe): 타겟 주변 이 반경 내 적 다수를 동시 타격 — 탈쓴퇴마사 ([docs/12]§3.1)
+@export var aoe_radius: float = 0.0
 ## >0 이면 도발(주변 적 어그로 유도) — 탱
 @export var taunt_radius: float = 0.0
 ## 받는 피해 감소 0~1 — 탱

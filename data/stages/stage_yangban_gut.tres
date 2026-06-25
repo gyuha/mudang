@@ -22,7 +22,9 @@ script = ExtResource("2")
 kind = &"purify_zone"
 params = {
 "order": 0,
-"charge_time": 25.0
+"charge_time": 25.0,
+"pos": Vector2(0, 0),
+"radius": 200.0
 }
 
 [sub_resource type="Resource" id="SP_mask"]

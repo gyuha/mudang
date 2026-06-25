@@ -67,6 +67,8 @@ var hp_bar: HpBar
 
 func _ready() -> void:
 	if def != null:
+		# 인스턴스 전용 def 복사본 — 성장 카드(CompanionUpgrade)가 공유 리소스를 변형하지 않게.
+		def = def.duplicate()
 		hp = def.max_hp
 	# 생성 스프라이트(투명, id별). 없으면 역할색 ColorRect 폴백(eco: 에셋 누락 방어).
 	var tex: Texture2D = null
@@ -175,6 +177,19 @@ func add_companion_exp(v: float) -> void:
 func has_pending() -> bool:
 	return pending_upgrades > 0
 
+## 적용된 성장 카드 레벨 {card id: level} — max_level 상한 판정용.
+var _upgrade_levels: Dictionary = {}
+
+## 카드가 이 동료에 적용 가능한가(역할 일치 + 미만렙).
+func can_take_upgrade(up: CompanionUpgrade) -> bool:
+	return up.applies_to(def.role_id) and int(_upgrade_levels.get(up.id, 0)) < up.max_level
+
+## 성장 카드 1레벨 적용: 인스턴스 def 복사본 스탯에 델타 가산 + pending 1 소비 + 레벨 기록.
+func apply_companion_upgrade(up: CompanionUpgrade) -> void:
+	up.apply_to(self)
+	_upgrade_levels[up.id] = int(_upgrade_levels.get(up.id, 0)) + 1
+	pending_upgrades = max(0, pending_upgrades - 1)
+
 ## 현재 상태(체크/디버그용).
 func state_name() -> String:
 	return State.keys()[_state]
@@ -282,12 +297,16 @@ func _act(dt: float) -> void:
 			vel = _separation()
 	position += vel * dt
 
-## 쿨다운+사거리 충족 시 타겟에 즉시 피해(투사체/관통은 M8).
+## 쿨다운+사거리 충족 시 타겟에 즉시 피해(투사체/관통은 M8). aoe_radius>0이면 광역 베기.
 func _try_attack(dist_to_target: float) -> void:
 	if def.attack_damage <= 0.0:
 		return
 	if _attack_accum >= def.attack_period and dist_to_target <= def.attack_range:
-		enemies.apply_damage(_target_idx, def.attack_damage)
+		if def.aoe_radius > 0.0:
+			# 광역 베기: 타겟 주변 반경 내 적 다수 동시 타격(탈쓴퇴마사).
+			enemies.apply_damage_circle(enemies.position_of(_target_idx), def.aoe_radius, def.attack_damage)
+		else:
+			enemies.apply_damage(_target_idx, def.attack_damage)
 		_attack_accum = 0.0
 
 ## 힐러 이동: 최저HP 아군(자신 포함) 곁에 머묾. 다 차 있으면 무녀 쪽.

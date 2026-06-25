@@ -20,6 +20,11 @@ var selected_companions: Array[String] = []
 ## 직전 런 결과(RunScene가 RESULT 전이 시 기록 → 결과 화면이 읽음). none|win|lose
 var last_result: StringName = &"none"
 
+## 저사양/모바일 열화 토글. true면 RunScene가 동시 적 상한을 250으로 하향(+향후 파티클/품질 분기). ([docs/06] 모바일 250)
+var low_spec: bool = false
+## 모바일 열화 시 동시 적 상한.
+const MOBILE_ENEMY_CAP: int = 250
+
 ## 상태 전이. 같은 값으로의 전이는 무시한다.
 func set_state(new_state: S) -> void:
 	if new_state == state:

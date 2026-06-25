@@ -24,7 +24,9 @@ script = ExtResource("2")
 kind = &"purify_zone"
 params = {
 "order": 0,
-"charge_time": 20.0
+"charge_time": 20.0,
+"pos": Vector2(0, -300),
+"radius": 180.0
 }
 
 [sub_resource type="Resource" id="Obj_purify2"]
@@ -32,7 +34,9 @@ script = ExtResource("2")
 kind = &"purify_zone"
 params = {
 "order": 1,
-"charge_time": 20.0
+"charge_time": 20.0,
+"pos": Vector2(320, 220),
+"radius": 180.0
 }
 
 [sub_resource type="Resource" id="Obj_purify3"]
@@ -40,7 +44,9 @@ script = ExtResource("2")
 kind = &"purify_zone"
 params = {
 "order": 2,
-"charge_time": 20.0
+"charge_time": 20.0,
+"pos": Vector2(-320, 220),
+"radius": 180.0
 }
 
 [sub_resource type="Resource" id="SP_mob"]
